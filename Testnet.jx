@@ -1,7 +1,110 @@
-class Block {
-    constructor(index, previousHash, timestamp, data, hash) {
-        this.index = index;
-        this.previousHash = previousHash.toString();
-        this.timestamp = timestamp;
-        this.data = data;
-        this.hash = hash.toString();
+class Note
+{
+    public static string Splitter = "_splitter_";
+    private string text;
+    private byte[] hash;
+ 
+    public Note(string text)
+    {
+        this.text = text;
+        this.hash = ComputeHash(text);
+    }
+ 
+    private byte[] ComputeHash(string text)
+    {
+        SHA256 sha = SHA256.Create(); //Создаём объект, который будет вычислять хеш
+        byte[] textBytes = Encoding.Default.GetBytes(text); //Преобразуем текст заметки в байты
+ 
+        return sha.ComputeHash(textBytes); //Возвращаем хеш
+    }
+ 
+    ///<Summary>Полный текст заметки</Summary>
+    public string Text { get { return this.text; } }
+ 
+    ///<Summary>Текст заметки без хеша прошлого блока</Summary>
+    public string ClearText
+    {
+        get
+        {
+            return this.text.Remove(0, this.text.IndexOf(Note.Splitter) + Note.Splitter.Length);
+        }
+    }
+ 
+    ///<Summary>Хеш прошлого блока</Summary>
+    public string PreviousHash
+    {
+        get
+        {
+            return this.text.Remove(this.text.IndexOf(Note.Splitter));
+        }
+    }
+ 
+    ///<Summary>Хеш текущего блока в виде строки</Summary>
+    public string HashString
+    {
+        get
+        {
+            //При каждом получении текущего хеша нужно считать его заново
+            //Так мы будем уверены, что он актуален
+            var hash = ComputeHash(this.text); 
+            return Encoding.Default.GetString(hash);
+        }
+    }
+ 
+    ///<Summary>Хеш в виде байтов</Summary>
+    public byte[] Hash { get { return this.hash; } }
+    List<Note> notes = new List<Note>(); //Список блоков
+ 
+notes.Add(new Note "start" + Note.Splitter + "First note")); //Добавляем первую заметку
+А потом — реализовать метод добавления новых блоков.
+
+static void AddNote(string text, List<Note> notes)
+{
+    notes.Add(new Note(notes[notes.Count - 1].HashString + Note.Splitter + text));
+}
+Когда пользователь вводит текст для новой заметки, он передаётся в метод AddNote ().Там создаётся новый блок, который содержит текст вида
+
+Хеш предыдущего блока_разделитель_текст заметки
+Созданный блок тут же добавляется в список:
+
+
+После того как будет создано несколько заметок, можно проверить список:
+
+
+Здесь отображается только текст заметок, но, если посмотреть на полную информацию о них, можно увидеть, что они содержат в себе хеш прошлого блока:
+
+
+Хеш выглядит немного иначе, потому что конвертируется сразу в строку, а не в шестнадцатеричное число
+Просматривать всё это вручную, чтобы проверить достоверность данных, нет смысла, потому что блоков может быть очень много. Вместо этого напишем метод валидации:
+
+///<summary>Проверка подлинности блоков</summary>
+static void ValidateNotes(List<Note> notes)
+{
+    for(int i = 0; i < notes.Count; i++)
+    {
+        if(i == 0) //Не проверять первый блок
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("0 - Valid");
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.White;
+            
+            //Проверяем, соответствует ли хеш, записанный в текущий блок, хешу прошлого блока
+            if(@notes[i].PreviousHash == @notes[i - 1].HashString) 
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine(i + " - Valid");
+            }
+            else
+            {
+                Console.WriteLine($"\n\n | {notes[i].PreviousHash} | {notes[i - 1].HashString} | \n\n");
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine(i + " - Changed");
+            }
+        }
+    }
+ 
+    Console.WriteLine("\n");
+
